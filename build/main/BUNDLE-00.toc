@@ -1,3 +1,0 @@
-([('OSZ-PPT Converter',
-   '/Users/shina/Documents/SF/python/slides_v1/dist/OSZ-PPT Converter',
-   'EXECUTABLE')],)

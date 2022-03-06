@@ -1,20 +1,19 @@
 # -*- mode: python ; coding: utf-8 -*-
 import sys
-from os import path
+import os
 site_packages = next(p for p in sys.path if 'site-packages' in p)
 
-
+current_dir = os.getcwd()
 block_cipher = None
 
 added_files = [
          ('images', 'images' ),
-         (path.join(site_packages,"pptx","templates"), "pptx/templates"),
+         (os.path.join(site_packages,"pptx","templates"), "pptx/templates"),
          ]
 
 
 a = Analysis(['main.py'],
-             pathex=['/Users/shinamadamori/Documents/SF/python/slides_v1',
-             '/Users/shinamadamori/Documents/SF/python/slides_v1/env/bin/python'],
+             pathex=[current_dir, 'venv/bin/python'],
              binaries=[],
              datas=added_files,
              hiddenimports=[],
