@@ -3,6 +3,7 @@ import os
 import sys
 import random
 import zipfile
+import shutil
 
 from pathlib import Path
 
@@ -57,10 +58,8 @@ class Job:
     def __init__(self, osz_file_path, theme):
         self.osz_file_path = osz_file_path
         self.theme = theme
+        self.prs_list = []
         self.songs = []
-        # self.prs = Presentation('default.pptx')
-        self.prs = Presentation()
-        self.prs.slide_width, self.prs.slide_height = PRS_SIZE
         self.default_output_path = None
         images = BKG_IMAGES.get(theme, DEFAULT_THEME)
         self.bkg_images = random.sample(images, len(images))
@@ -138,9 +137,9 @@ class Job:
                     song_obj.bkg_image_path = os.path.join(bundle_dir, "images/", image_file_name)
                     self.songs.append(song_obj)
 
-    def _add_title_slide(self, song_index):
+    def _add_title_slide(self, prs, song_index):
         song = self.songs[song_index]
-        slide = self.prs.slides.add_slide(slide_layout=self.prs.slide_layouts[SLD_LAYOUT_TITLE])
+        slide = prs.slides.add_slide(slide_layout=prs.slide_layouts[SLD_LAYOUT_TITLE])
         #     slide.shapes.title.text = song.title
         p = slide.shapes.title.text_frame.paragraphs[0]
         p.text = song.title
@@ -151,7 +150,7 @@ class Job:
         p.font.bold = True
         p.font.size = Pt(40)
 
-        pic = slide.shapes.add_picture(song.bkg_image_path, P_LEFT, P_TOP, width=self.prs.slide_width, height=self.prs.slide_height)
+        pic = slide.shapes.add_picture(song.bkg_image_path, P_LEFT, P_TOP, width=prs.slide_width, height=prs.slide_height)
         slide.shapes._spTree.remove(pic._element)
         slide.shapes._spTree.insert(2, pic._element)
 
@@ -193,11 +192,11 @@ class Job:
         p.font.color.theme_color = color
         p.text = "Title: {} \nAuthor: {}".format(song.title, song.author)
 
-    def _add_prs_slide(self, song, slide, slide_loc_str):
-        prs_slide = self.prs.slides.add_slide(self.prs.slide_layouts[SLD_LAYOUT_BLANK_PAGE])
+    def _add_prs_slide(self, prs, song, slide, slide_loc_str):
+        prs_slide = prs.slides.add_slide(prs.slide_layouts[SLD_LAYOUT_BLANK_PAGE])
 
         # Add bkg picture
-        pic = prs_slide.shapes.add_picture(song.bkg_image_path, P_LEFT, P_TOP, width=self.prs.slide_width, height=self.prs.slide_height)
+        pic = prs_slide.shapes.add_picture(song.bkg_image_path, P_LEFT, P_TOP, width=prs.slide_width, height=prs.slide_height)
         prs_slide.shapes._spTree.remove(pic._element)
         prs_slide.shapes._spTree.insert(2, pic._element)
 
@@ -226,7 +225,10 @@ class Job:
 
     def generate_ppt(self):
         for i, song in enumerate(self.songs):
-            self._add_title_slide(i)
+            prs = Presentation()
+            prs.slide_width, prs.slide_height = PRS_SIZE
+            self._add_title_slide(prs, i)
+
             slides = []
             if song.verse_order is None:
                 for s in song.slides:
@@ -239,21 +241,31 @@ class Job:
 
             for i, s in enumerate(slides):
                 slide_loc_str = "{}/{}".format(i+1, len(slides))
-                self._add_prs_slide(song, s, slide_loc_str)
+                self._add_prs_slide(prs, song, s, slide_loc_str)
 
-        self.default_output_path = Path(self.osz_file_path).stem + ".pptx"
+            self.prs_list.append({
+                "title": song.title,
+                "prs": prs,
+            })
+        # self.default_output_path = Path(self.osz_file_path).stem + ".pptx"
 
-    def save_file(self, filename=None):
-        if not filename:
-            filename = self.default_output_path
-        try:
-            self.prs.save(filename)
-        except Exception as e:
-            if hasattr(e, 'message'):
-                return e.message
-            else:
-                return e
+    def save_file(self, output_dir="output"):
+        def cleanFilename(sourcestring, removestring="%:/,.\\[]<>*?"):
+            return ''.join([c for c in sourcestring if c not in removestring])
 
+
+        if os.path.exists(output_dir):
+            shutil.rmtree(output_dir)
+        os.makedirs(output_dir)
+        for out in self.prs_list:
+            filename = cleanFilename(out["title"])
+            try:
+                out["prs"].save("{}/{}.pptx".format(output_dir,filename))
+            except Exception as e:
+                if hasattr(e, 'message'):
+                    print(e.message)
+                else:
+                    print(e)
 
 
 
