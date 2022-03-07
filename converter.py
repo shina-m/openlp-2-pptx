@@ -155,10 +155,10 @@ class Job:
         slide.shapes._spTree.remove(pic._element)
         slide.shapes._spTree.insert(2, pic._element)
 
-    def _add_footer(self, song: Song, slide_idx, ppt_slide):
+    def _add_footer(self, song: Song, prs_slide, slide_loc_str):
         color = MSO_THEME_COLOR_INDEX.DARK_1 if self.theme == "light" else MSO_THEME_COLOR_INDEX.LIGHT_1
 
-        txBox = ppt_slide.shapes.add_textbox(left=CONTENT_LEFT, top=FOOTER_TOP, width=CONTENT_WIDTH / 2, height=FOOTER_HEIGHT)
+        txBox = prs_slide.shapes.add_textbox(left=CONTENT_LEFT, top=FOOTER_TOP, width=CONTENT_WIDTH / 2, height=FOOTER_HEIGHT)
         tf = txBox.text_frame
         tf.vertical_anchor = MSO_VERTICAL_ANCHOR.MIDDLE
         tf.word_wrap = True
@@ -167,18 +167,20 @@ class Job:
         p.font.italic = True
         p.font.size = Pt(12)
         p.font.color.theme_color = color
-        p.text = ppt_slide.name
+        p.text = prs_slide.name
 
         p = tf.add_paragraph()
         p.font.italic = True
-        p.font.size = Pt(10)
+        p.font.size = Pt(11)
         p.font.color.theme_color = color
-        if slide_idx == len(song.slides)-1:
+        slide_loc_str_split = slide_loc_str.split("/")
+        if slide_loc_str_split[0] == slide_loc_str_split[1]:
             p.font.bold = True
             p.font.color.rgb = RGBColor(128, 0, 0)
-        p.text = "({}/{})".format(slide_idx + 1, len(song.slides))
 
-        txBox = ppt_slide.shapes.add_textbox(left=(CONTENT_WIDTH / 2) + (SLIDE_MARGIN), top=FOOTER_TOP, width=CONTENT_WIDTH / 2,
+        p.text = "({})".format(slide_loc_str)
+
+        txBox = prs_slide.shapes.add_textbox(left=(CONTENT_WIDTH / 2) + (SLIDE_MARGIN), top=FOOTER_TOP, width=CONTENT_WIDTH / 2,
                                              height=FOOTER_HEIGHT)
         tf = txBox.text_frame
         tf.vertical_anchor = MSO_VERTICAL_ANCHOR.MIDDLE
@@ -191,21 +193,19 @@ class Job:
         p.font.color.theme_color = color
         p.text = "Title: {} \nAuthor: {}".format(song.title, song.author)
 
-    def _add_ppt_slide(self, song, slide_idx):
-        # print("Aaa", song.slides, slide_idx)
-        slide = song.slides[slide_idx]
-        ppt_slide = self.prs.slides.add_slide(self.prs.slide_layouts[SLD_LAYOUT_BLANK_PAGE])
+    def _add_prs_slide(self, song, slide, slide_loc_str):
+        prs_slide = self.prs.slides.add_slide(self.prs.slide_layouts[SLD_LAYOUT_BLANK_PAGE])
 
         # Add bkg picture
-        pic = ppt_slide.shapes.add_picture(song.bkg_image_path, P_LEFT, P_TOP, width=self.prs.slide_width, height=self.prs.slide_height)
-        ppt_slide.shapes._spTree.remove(pic._element)
-        ppt_slide.shapes._spTree.insert(2, pic._element)
+        pic = prs_slide.shapes.add_picture(song.bkg_image_path, P_LEFT, P_TOP, width=self.prs.slide_width, height=self.prs.slide_height)
+        prs_slide.shapes._spTree.remove(pic._element)
+        prs_slide.shapes._spTree.insert(2, pic._element)
 
-        ppt_slide.name = slide.name
-        self._add_footer(song, slide_idx, ppt_slide)
+        prs_slide.name = slide.name
+        self._add_footer(song, prs_slide, slide_loc_str)
 
         # create text box
-        txBox = ppt_slide.shapes.add_textbox(left=CONTENT_LEFT, top=CONTENT_TOP, width=CONTENT_WIDTH, height=CONTENT_HEIGHT)
+        txBox = prs_slide.shapes.add_textbox(left=CONTENT_LEFT, top=CONTENT_TOP, width=CONTENT_WIDTH, height=CONTENT_HEIGHT)
         tf = txBox.text_frame
         for i, line in enumerate(slide.lines):
             p = tf.paragraphs[i] if i == 0 else tf.add_paragraph()
@@ -227,15 +227,19 @@ class Job:
     def generate_ppt(self):
         for i, song in enumerate(self.songs):
             self._add_title_slide(i)
-
+            slides = []
             if song.verse_order is None:
-                for slide_idx, _ in enumerate(song.slides):
-                    self._add_ppt_slide(song, slide_idx)
+                for s in song.slides:
+                    slides.append(s)
             else:
                 for v in song.verse_order:
-                    for slide_idx, slide in enumerate(song.slides):
-                        if v == slide.id[:2]:
-                            self._add_ppt_slide(song, slide_idx)
+                    for s in song.slides:
+                        if v == s.id[:2]:
+                            slides.append(s)
+
+            for i, s in enumerate(slides):
+                slide_loc_str = "{}/{}".format(i+1, len(slides))
+                self._add_prs_slide(song, s, slide_loc_str)
 
         self.default_output_path = Path(self.osz_file_path).stem + ".pptx"
 
